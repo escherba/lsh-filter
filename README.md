@@ -1,20 +1,20 @@
-lsh
-===
+lsh-filter
+==========
 
 a pure python locality senstive hashing implementation
 
 ## Installation
-`lsh` is packaged with setuptools so it can be easily installed with pip like this:
+`lsh-filter` is packaged with setuptools so it can be easily installed with pip like this:
 
 ````
-$ cd lsh/
+$ cd lsh-filter/
 $ [sudo] pip install -e .
 ````
 
 ## Usage
 ```python
 
-from lsh import LSHCache
+from lsh_filter import LSHCache
 
 cache = LSHCache()
     
@@ -43,7 +43,7 @@ for i, doc in enumerate(docs):
 showing how many documents a cache will return based on the measured similarity of the documents. e.g.,
 
 ````
-$ python analyze_lsh.py --doc-len 1 10 --num-tokens 10 --similarity jaccard 
+$ python scripts/analyze_lsh.py --doc-len 1 10 --num-tokens 10 --similarity jaccard 
 |   Similarity |    LSH Count |  Total Count |     % in LSH | Theoretical % |
 |--------------+--------------+--------------+--------------+--------------|
 |         0.00 |            0 |       301195 |       0.0000 |       0.0000 |

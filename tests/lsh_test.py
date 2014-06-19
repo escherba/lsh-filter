@@ -6,7 +6,7 @@ Created on Dec 13, 2013
 import unittest
 import random
 from nltk.metrics.distance import jaccard_distance
-from lsh import LSHCache, Shingler, XORHashFamily, MultiplyHashFamily
+from lsh_filter import LSHCache, Shingler, XORHashFamily, MultiplyHashFamily
 
 class HashFamilyTest(unittest.TestCase):
     def _test_family(self, hash_family):
@@ -16,39 +16,39 @@ class HashFamilyTest(unittest.TestCase):
         for h in family.hashn(1234):
             h1.append(h)
         self.assertEqual(10, len(h1))
-        
+
         for ndx, h in enumerate(family.hashn(1243)):
             self.assertNotEqual(h1[ndx], h)
-        
+
         family = hash_family(10, 131071)
         for ndx, h in enumerate(family.hashn(1234)):
             self.assertNotEqual(h1[ndx], h)
-        
+
         random.seed(1234)
         family = hash_family(10, 131071)
         for ndx, h in enumerate(family.hashn(1234)):
             self.assertEqual(h1[ndx], h)
-        
+
     def testXOR(self):
         self._test_family(XORHashFamily)
-    
+
     def testMultiply(self):
         self._test_family(MultiplyHashFamily)
-        
+
 class ShinglerTest(unittest.TestCase):
     def testLenOne(self):
         s = Shingler(1)
         shingles = list(s.shingle("abcdef"))
         self.assertListEqual(map(tuple, "abcdef"), shingles)
         self.assertListEqual([('a',)], list(s.shingle("a")))
-    
+
     def testLenTwo(self):
         s = Shingler(2)
         shingles = list(s.shingle("abcdef"))
         self.assertListEqual(map(tuple, ["ab", "bc", "cd","de", "ef"]), shingles)
         self.assertListEqual([(None,'a',)], list(s.shingle("a")))
         self.assertListEqual([('a','b',)], list(s.shingle("ab")))
-    
+
     def testMultiLen(self):
         s = Shingler(2,3)
         shingles = set(s.shingle("abcdef"))
@@ -57,17 +57,17 @@ class ShinglerTest(unittest.TestCase):
         self.assertSetEqual(set([('a','b',),('b','c',),('a','b','c',)]), set(s.shingle("abc")))
         self.assertSetEqual(set([('a','b',),(None,'a','b',)]), set(s.shingle("ab")))
         self.assertSetEqual(set([(None,'a',),(None,None,'a',)]), set(s.shingle("a")))
-        
-    
+
+
     def testBadArgs(self):
         with self.assertRaises(AssertionError):
             Shingler(0)
         with self.assertRaises(AssertionError):
             Shingler(2,1)
-       
-        
+
+
 class LSHTest(unittest.TestCase):
-    
+
     def testExample(self):
         docs = [
                 "lipstick on a pig",
@@ -172,7 +172,7 @@ class LSHTest(unittest.TestCase):
         self.assertSetEqual(set([0]), lsh.insert("34567890"))
         self.assertSetEqual(set([0]), lsh.insert("0123456"))
         self.assertSetEqual(set([0,1,2]), lsh.insert("123456789"))
-        
+
     def testPercentFound(self):
         lsh = LSHCache(b=2,r=1)
         self.assertEqual(0.75, lsh.theoretical_percent_found(0.5))
@@ -192,7 +192,7 @@ class LSHTest(unittest.TestCase):
         lsh = LSHCache(b=25,r=4,m=3)
         self.assertAlmostEqual(0.2032, lsh.theoretical_percent_found(0.5), places=4)
         self.assertAlmostEqual(0.9997, lsh.theoretical_percent_found(0.8), places=4)
-        
+
     def testLSH(self):
         strings = [
                    "abcdefghijklmnopqrstuvwxyz",
@@ -218,7 +218,7 @@ class LSHTest(unittest.TestCase):
                               set(),
                               set([5]),
                               set([5,6])], lsh.insert_batch(strings))
-        
+
     def testBadArgs(self):
         with self.assertRaises(AssertionError):
             LSHCache(b=10, r=7, n=100)
@@ -229,7 +229,7 @@ class LSHTest(unittest.TestCase):
             LSHCache(n=100, r=7)
         with self.assertRaises(AssertionError):
             LSHCache(n=100, b=7)
-        
+
     def testLSHArgs(self):
         lsh = LSHCache()
         self.assertEqual(20, lsh.num_bands())
@@ -237,7 +237,7 @@ class LSHTest(unittest.TestCase):
         self.assertEqual(100, lsh.num_total_rows())
         self.assertEqual(2, lsh.shingler().shingle_len())
         self.assertEqual(1, lsh.min_support())
-        
+
         lsh = LSHCache(b=10, r=7)
         self.assertEqual(10, lsh.num_bands())
         self.assertEqual(7, lsh.num_rows_per_band())
@@ -251,7 +251,7 @@ class LSHTest(unittest.TestCase):
         self.assertEqual(70, lsh.num_total_rows())
         self.assertEqual(2, lsh.shingler().shingle_len())
         self.assertEqual(1, lsh.min_support())
-        
+
         lsh = LSHCache(n=70, b=10, m=3)
         self.assertEqual(10, lsh.num_bands())
         self.assertEqual(7, lsh.num_rows_per_band())
@@ -265,14 +265,14 @@ class LSHTest(unittest.TestCase):
         self.assertEqual(70, lsh.num_total_rows())
         self.assertEqual(2, lsh.shingler().shingle_len())
         self.assertEqual(1, lsh.min_support())
-        
+
         lsh = LSHCache(shingler=Shingler(5))
         self.assertEqual(20, lsh.num_bands())
         self.assertEqual(5, lsh.num_rows_per_band())
         self.assertEqual(100, lsh.num_total_rows())
         self.assertEqual(5, lsh.shingler().shingle_len())
         self.assertEqual(1, lsh.min_support())
-        
+
         lsh = LSHCache(shingler=Shingler(2,3))
         self.assertEqual(20, lsh.num_bands())
         self.assertEqual(5, lsh.num_rows_per_band())

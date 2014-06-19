@@ -1,13 +1,13 @@
-import pprint
-import sys, os
+import sys
+import os
 
 sys.path.insert(0, os.path.abspath('../..'))
-from lsh import LSHCache
+from lsh_filter import LSHCache
 
 
 if __name__ == '__main__':
     cache = LSHCache()
-    
+
     docs = [
         "lipstick on a pig",
         "you can put lipstick on a pig",

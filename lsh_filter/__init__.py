@@ -3,7 +3,6 @@ import itertools as it
 import functools as ft
 import random
 import sys
-import time
 import logging
 from math import sqrt, factorial, fsum
 import inspect
@@ -13,13 +12,13 @@ logging.getLogger().setLevel(logging.INFO)
 
 class Shingler(object):
     """
-    Handles turning a document (a list of tokens) into a sequence of shingles to 
+    Handles turning a document (a list of tokens) into a sequence of shingles to
     be used for minhashing
     """
-    
+
     def __init__(self, shingle_len=2, max_shingle=None):
         """
-        Create a shingler by specifying the length of shingle.  If you want shingles of 
+        Create a shingler by specifying the length of shingle.  If you want shingles of
         multiple length, then provide a minimum and maximum shingle length.
         Defaults to a shingle length of 2
         """
@@ -30,20 +29,20 @@ class Shingler(object):
             self._end_shingle = max_shingle + 1
         else:
             self._end_shingle = shingle_len + 1
-    
+
     def shingle_universe(self, token_universe):
         """
         Given a size of the token universe, return the size of the shingle universe
         """
         return sum(map(lambda sl: token_universe**sl, xrange(self._begin_shingle, self._end_shingle)))
-   
+
     def shingle_len(self):
         """
         return the shingle length being used. If only a single shingle length is used, then a single item is returned
         If multiple shingle lengths are used a tuple of the beginning and end (inclusive) is used.
         """
         return self._begin_shingle if not self.is_multi_shingler() else (self._begin_shingle, self._end_shingle-1,)
- 
+
     def shingle_len_str(self):
         """
         return a string representing the shingle length.  If there is only one shingle length, it is simply the number
@@ -57,7 +56,7 @@ class Shingler(object):
         times)
         """
         return self._begin_shingle+1 != self._end_shingle
-    
+
     def shingle(self, doc):
         """
         Takes a document (a list of tokens) and  of tokenized words returns a sequence and maps each shingle to a unique id.
@@ -72,36 +71,36 @@ class Shingler(object):
                     yield tuple(doc[j:j+n])
 
     def __str__(self):
-        return ("Shingler(len %d<=%d)" if self.is_multi_shingler() else "Shingler(len %d)") % self.shingle_len()                    
-        
+        return ("Shingler(len %d<=%d)" if self.is_multi_shingler() else "Shingler(len %d)") % self.shingle_len()
+
 class IHashFamily(object):
     """
     An interface for a hash family provider.  It provides a series of random hashes
     from a universal hash family.  This can then be used for minhashing.
     """
-    
+
     def __init__(self, num_hashes, num_buckets):
         """
-        Initialize the hash family by indicating how many hashes are needed.  
+        Initialize the hash family by indicating how many hashes are needed.
         Also indicate the number of buckets that will be hashed to (if that is necessary
         for choosing parameters).  The hash function is not required to return values less
-        than num_buckets (They will be modulo'd afterwards) 
+        than num_buckets (They will be modulo'd afterwards)
         """
         pass
-    
+
     def hashn(self, x):
         """
         return a sequence of n hashes of the value x.  n is provided in the construction
         of the hash family
         """
         raise NotImplementedError()
-        
+
 class XORHashFamily(IHashFamily):
     """
     An implementation of a hash family.  This uses random 32-bit hash values which are
     xor'd with the value (It assumes that the value is an integer)
     """
-    
+
     def __init__(self, num_hashes, num_buckets):
         """
         Initialize a random number of 32-bit fields for xoring
@@ -116,14 +115,14 @@ class XORHashFamily(IHashFamily):
         return int(x ^ mask)
 
     def hashn(self, x):
-        """ 
+        """
         generate the series of hashes of the value to be used for finding the minhash
         The implementation uses _xor_hashing with a series of random 32-bit fields
         """
         # trim x to 32-bits
         x = x & 0xffffffff
         return it.imap(lambda mask: self._xor_hash(x, mask), self._memomask)
- 
+
 class MultiplyHashFamily(IHashFamily):
     """
     An implementation of a hash family that uses random multiplication of the
@@ -132,51 +131,51 @@ class MultiplyHashFamily(IHashFamily):
     This method was described in an exercise (http://www.cs.uoi.gr/~tsap/teaching/2012f-cs059/assignments/assignment2-en.pdf)
     and implemented in java (http://blogs.msdn.com/b/spt/archive/2008/06/10/set-similarity-and-min-hash.aspx)
     """
-     
+
     def __init__(self, num_hashes, num_buckets):
         """
         Initialize a set of 3 random integers < num_buckets for each hash
         """
         self._params = [ [random.randint(1,num_buckets) for _ in xrange(3)] for _ in xrange(num_hashes)]
-    
+
     def _mult_hash(self, x, params):
         return params[0]*(x>>4) + params[1]*x + params[2]
-    
+
     def hashn(self, x):
         return it.imap(lambda params: self._mult_hash(x, params), self._params)
 
-    
+
 class LSHCache:
     """
-    Locality-Sensitive Hashing (LSH) implementation as described in 
+    Locality-Sensitive Hashing (LSH) implementation as described in
     Mining of Massive Dataset, Chapter 3 by Anand Rajaraman and Jeff Ullman, Chapter 3
     http://infolab.stanford.edu/~ullman/mmds/ch3.pdf
-    
+
     A document is a sequence of items which will be shingled together to look for
     similarity.
 
     This can bep
     This can be sub-classed to allow for implementing your own method for hashing shingles
     or hashing a shingle into the set of hashes used by minhash.
-    
+
     Override _minhash_hash and _minhash_init in order to change how minhashes are calculated
-    
+
     Override _hash_shingle in order to change how shingles are hashed. The default behavior
     is to simply hash each tuple.  Another approach would be to keep a cache mapping each shingle
     seen to a unique id and return that.
     """
-    
+
     def __init__(self, b=None, r=None, n=None, m=1,
                  shingler=Shingler(2), shingle_hash=hash,
                  universe_size = 131071, minhash=MultiplyHashFamily,
                  store_signatures = False):
         """
         An implementation of Locality-Sensitive Hashing (LSH) using minhash
-        
-        All arguments are optional. If no additional arguments are specified, 
-        the LSH will be 20 bands of 5 rows each (100 total rows) returning with 1 band matching 
+
+        All arguments are optional. If no additional arguments are specified,
+        the LSH will be 20 bands of 5 rows each (100 total rows) returning with 1 band matching
         and with a shingle length of 2.
-        
+
         You can specify the number of bands and rows or just the total number of rows
         and either bands and rows-per-band.  If the specification is incomplete, it will determine
         missing values based on the 2 out of 3 specified (given that b*r==n).  If only total number
@@ -186,16 +185,16 @@ class LSHCache:
             r: number of rows per band
             n: total number of rows
             m: minimum support (minimum number of bands to match for similarity)
-            
+
         You may also specify how a document is shingled and how that shingle is hashed.  Those arguments are:
             shingler: an instance of Shingler (has the method shingle(doc) that returns an iteration)
             shingle_hash: how to hash the shingles returned by the shingler.  Defaults to built-in hash
 
-        You may also specify what method is used for minhashing.  
+        You may also specify what method is used for minhashing.
             universe_size:  size of token universe.  If you know the number of possible tokens
                             in your universe, you can specify it so that hashing better simulates
-                            a random permutation of rows in a num_tokens x num_rows matrix.  
-                            If it is not known, it is better to leave as a prime number for better 
+                            a random permutation of rows in a num_tokens x num_rows matrix.
+                            If it is not known, it is better to leave as a prime number for better
                             hash performance.  Defaults to 131071
             minhash:        class that implements IHashFamily interface or a method that takes a single
                             argument and returns a sequence of n hashes
@@ -209,7 +208,7 @@ class LSHCache:
                               By default, True
         """
 
-        # default to 20 bands of 5 rows         
+        # default to 20 bands of 5 rows
         if n is None and r is None and b is None:
             # defaults
             b,r = (20,5)
@@ -255,20 +254,20 @@ class LSHCache:
         self._minhash = minhash
         self._universe_size = universe_size
         self._store_signatures = store_signatures
-        
-        # make it 
+
+        # make it
         self.clear()
 
     def _hash_shingle(self, shingle):
         return hash(shingle)
-        
+
     def _get_shingle_vec(self, doc):
         """
         Takes a sequence of tokenized words and maps each shingle to a unique id.
         These unique ids, are then added to the shingle_vec object which is just a sparse
         vector implemented as a dict with v[id]=1 when a shingle id is present
         """
-        return set(it.imap(lambda shingle: self._shingle_hash(shingle) % self._universe_size, 
+        return set(it.imap(lambda shingle: self._shingle_hash(shingle) % self._universe_size,
                            self._shingler.shingle(doc)))
 
     def _get_sig(self,shingle_vec):
@@ -286,7 +285,7 @@ class LSHCache:
                 if (h < mhash[i]):
                     mhash[i] = h
         return mhash
-        
+
     def _get_lsh(self,sig):
         """
         Takes an n-dimensional minhash signature and computes b hashes for each of
@@ -296,10 +295,10 @@ class LSHCache:
         lsh = [None]*self._b
         for i in xrange(self._b):
             lsh[i] = hash(tuple(sig[self._r*i:self._r*(i+1)]))
-                                    
+
         #logging.debug('hashed signature: %s\n[get_lsh]\tto bins: %s', (sig,lsh)
         return lsh
-    
+
     def _get_lsh_from_doc(self, doc):
         """
         given an iterable of hashable items, returns a list of bucket ids
@@ -314,36 +313,36 @@ class LSHCache:
         Given an LSH vector of bucket indices, this method inserts the current doc
         id in the corresponding bucket for each of the _b tables
         """
-        assert doc_id not in self._seen, "Document with doc_id %d has already been inserted" % doc_id 
+        assert doc_id not in self._seen, "Document with doc_id %d has already been inserted" % doc_id
         self._seen[doc_id] = lsh if self._store_signatures else None
         if doc_id >= self._next_id:
             self._next_id = doc_id+1
         return self._reduce(self._insert_lsh_generator(lsh, doc_id))
-    
-    def _insert_lsh_generator(self, lsh, doc_id):    
+
+    def _insert_lsh_generator(self, lsh, doc_id):
         """
-        Inserts the doc_id across all the band hashtables by its portion of lsh.  This is to 
-        be used with _insert_lsh as it modifies the structure yielding the current contents 
+        Inserts the doc_id across all the band hashtables by its portion of lsh.  This is to
+        be used with _insert_lsh as it modifies the structure yielding the current contents
         of each of those bands as it adds the doc_id.
-        """ 
+        """
         for i,band_bucket in enumerate(lsh):
             arr = self._cache[i][band_bucket]
             yield arr
             arr.append(doc_id)
-            
-    @staticmethod        
+
+    @staticmethod
     def _reduce_sets(sets):
         """
         Reduce a set of sequences into the intersection of all the sets.
         This handles the degenerative case where minimum_support is 1
         """
-        return reduce(set.union, sets, set())        
-    
+        return reduce(set.union, sets, set())
+
     @staticmethod
     def _reduce_sets_by_min(sets, min_support):
         """
         Reduce a set of sequences and return a set of objects occurring at least
-        min times across the set. 
+        min times across the set.
         """
         def counter_union(c,s):
             c.update(s)
@@ -351,8 +350,8 @@ class LSHCache:
         counts = reduce(counter_union, sets, Counter())
         return set(it.imap(lambda (item, _): item,
                            it.ifilter(lambda (_, count): count >= min_support,
-                                      counts.iteritems())))    
-    
+                                      counts.iteritems())))
+
     # public methods
     def get_dup_buckets(self, doc, doc_id=None):
         """
@@ -370,7 +369,7 @@ class LSHCache:
             yield self._cache[i][band_bucket]
 
     def get_dups(self, doc, doc_id=None):
-        
+
         buckets = self.get_dup_buckets(doc, doc_id)
         all_buckets = self._reduce(buckets)
         if doc_id is not None:
@@ -378,7 +377,7 @@ class LSHCache:
         return all_buckets
 
     def insert(self, doc, doc_id=None):
-        if doc_id is None: 
+        if doc_id is None:
             doc_id = self._next_id
         lsh = self._get_lsh_from_doc(doc)
         logging.debug('id: %d lsh: %s', doc_id, lsh)
@@ -405,25 +404,25 @@ class LSHCache:
 
     def num_docs(self):
         return len(self._seen)
-    
+
     def max_doc_id(self):
         return self._next_id-1
-    
+
     def num_bands(self):
         return self._b
-    
+
     def min_support(self):
         return self._m
-    
+
     def num_rows_per_band(self):
         return self._r
-    
+
     def num_total_rows(self):
         return self._n
-    
+
     def shingler(self):
         return self._shingler
-    
+
     def theoretical_percent_found(self, pct_similar):
         """
         Returns the theoretical percentage of documents that should be found with the
@@ -444,9 +443,9 @@ def nCr(n,r):
 
 def dbinom(pct, n, r):
     """
-    density of binomial distribution. Returns percentage that 
+    density of binomial distribution. Returns percentage that
     exactly r  of n independent trials given pct of a single trial
-    Follows naming conventions of r 
+    Follows naming conventions of r
     """
     return nCr(n,r) * (pct**r) * ((1-pct)**(n-r))
 
