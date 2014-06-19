@@ -4,6 +4,7 @@ import os
 base = os.path.dirname(__file__)
 local = lambda x: os.path.join(base, x)
 
+
 def read(fname):
     return open(local(fname)).read()
 
@@ -11,7 +12,7 @@ setup(
     name='lsh-filter',
     version='0.0.1',
     description='pure python near-duplicate document detection system',
-    url='http://www.github.com/escherba/lsh',
+    url='http://www.github.com/escherba/lsh-filter',
     author='Evan Rosen',
     author_email='rosen21@gmail.com',
     packages=find_packages(exclude=['tests', 'scripts']),
