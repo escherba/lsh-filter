@@ -8,6 +8,9 @@ package: env
 	$(PYTHON) setup.py bdist_egg
 	$(PYTHON) setup.py sdist
 
+analysis: dev
+	$(PYTHON) -m lsh_filter.analysis --doc-len 1 10 --num-tokens 10 --similarity jaccard
+
 test: dev
 	$(PYTHON) `which nosetests` $(NOSEARGS)
 	$(PYENV) py.test README.rst
