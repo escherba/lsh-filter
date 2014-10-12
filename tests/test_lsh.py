@@ -5,8 +5,16 @@ Created on Dec 13, 2013
 '''
 import unittest
 import random
-from nltk.metrics.distance import jaccard_distance
 from lsh_filter import LSHCache, Shingler, XORHashFamily, MultiplyHashFamily
+
+
+def jaccard_distance(label1, label2):
+    """Distance metric comparing set-similarity.
+
+    """
+    return ((len(label1.union(label2)) - len(label1.intersection(label2))) /
+            float(len(label1.union(label2))))
+
 
 class HashFamilyTest(unittest.TestCase):
     def _test_family(self, hash_family):
@@ -34,6 +42,7 @@ class HashFamilyTest(unittest.TestCase):
 
     def testMultiply(self):
         self._test_family(MultiplyHashFamily)
+
 
 class ShinglerTest(unittest.TestCase):
     def testLenOne(self):
@@ -69,8 +78,7 @@ class ShinglerTest(unittest.TestCase):
 class LSHTest(unittest.TestCase):
 
     def testExample(self):
-        docs = [
-                "lipstick on a pig",
+        docs = ["lipstick on a pig",
                 "you can put lipstick on a pig",
                 "you may put lipstick on a pig but it's still a pig",
                 "you can put lipstick on a pig it's still a pig",
@@ -202,11 +210,11 @@ class LSHTest(unittest.TestCase):
                    "1abcdefghijklmnopuvw1",
                    "123456789",
                    "012345678",
-                   "234567890",
-                   ]
+                   "234567890"]
         for i, a in enumerate(strings):
-            for j, b in enumerate(strings[i+1:]):
-                print "'%s' (%d) <=> (%d)'%s': %f" % (a, i,j+i+1, b, 1-jaccard_distance(set(a),set(b)))
+            for j, b in enumerate(strings[i + 1:]):
+                print "'%s' (%d) <=> (%d)'%s': %f" % \
+                      (a, i, j + i + 1, b, 1 - jaccard_distance(set(a), set(b)))
 
         random.seed(12345)
         lsh = LSHCache(shingler=Shingler(1))
@@ -282,5 +290,4 @@ class LSHTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testLSHCreation']
     unittest.main()

@@ -1,11 +1,12 @@
-from collections import defaultdict, Counter
-import itertools as it
-import functools as ft
 import random
 import sys
+import abc
 import logging
-from math import sqrt, factorial, fsum
 import inspect
+import itertools as it
+import functools as ft
+from math import sqrt, factorial, fsum
+from collections import defaultdict, Counter
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -34,28 +35,28 @@ class Shingler(object):
         """
         Given a size of the token universe, return the size of the shingle universe
         """
-        return sum(map(lambda sl: token_universe**sl, xrange(self._begin_shingle, self._end_shingle)))
+        return sum(token_universe ** sl for sl in xrange(self._begin_shingle, self._end_shingle))
 
     def shingle_len(self):
         """
         return the shingle length being used. If only a single shingle length is used, then a single item is returned
         If multiple shingle lengths are used a tuple of the beginning and end (inclusive) is used.
         """
-        return self._begin_shingle if not self.is_multi_shingler() else (self._begin_shingle, self._end_shingle-1,)
+        return self._begin_shingle if not self.is_multi_shingler() else (self._begin_shingle, self._end_shingle - 1,)
 
     def shingle_len_str(self):
         """
         return a string representing the shingle length.  If there is only one shingle length, it is simply the number
         Otherwise it represents the range of shingle lengths as 'lower<=upper'
         """
-        return "<=".join(sorted(set((self._begin_shingle, self._end_shingle-1))))
+        return "<=".join(sorted(set((self._begin_shingle, self._end_shingle - 1))))
 
     def is_multi_shingler(self):
         """
         indicates whether this shingler creates shingles of multiple lengths (i.e., whether it shingles the document multiple
         times)
         """
-        return self._begin_shingle+1 != self._end_shingle
+        return self._begin_shingle + 1 != self._end_shingle
 
     def shingle(self, doc):
         """
@@ -65,19 +66,22 @@ class Shingler(object):
         """
         for n in xrange(self._begin_shingle, self._end_shingle):
             if len(doc) < n:
-                yield (None,)*(n-len(doc)) + tuple(doc)
+                yield (None,) * (n - len(doc)) + tuple(doc)
             else:
-                for j in xrange(len(doc) - (n-1)):
-                    yield tuple(doc[j:j+n])
+                for j in xrange(len(doc) - (n - 1)):
+                    yield tuple(doc[j:j + n])
 
     def __str__(self):
         return ("Shingler(len %d<=%d)" if self.is_multi_shingler() else "Shingler(len %d)") % self.shingle_len()
+
 
 class IHashFamily(object):
     """
     An interface for a hash family provider.  It provides a series of random hashes
     from a universal hash family.  This can then be used for minhashing.
     """
+
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self, num_hashes, num_buckets):
         """
@@ -86,14 +90,14 @@ class IHashFamily(object):
         for choosing parameters).  The hash function is not required to return values less
         than num_buckets (They will be modulo'd afterwards)
         """
-        pass
 
+    @abc.abstractmethod
     def hashn(self, x):
         """
         return a sequence of n hashes of the value x.  n is provided in the construction
         of the hash family
         """
-        raise NotImplementedError()
+
 
 class XORHashFamily(IHashFamily):
     """
@@ -105,9 +109,10 @@ class XORHashFamily(IHashFamily):
         """
         Initialize a random number of 32-bit fields for xoring
         """
-        self._memomask = [ int(random.getrandbits(32)) for _ in xrange(num_hashes)]
+        super(XORHashFamily, self).__init__(num_hashes, num_buckets)
+        self._memomask = [int(random.getrandbits(32)) for _ in xrange(num_hashes)]
 
-    def _xor_hash(self,x, mask):
+    def _xor_hash(self, x, mask):
         """
         This is a simple hash function which returns the result of a bitwise XOR
         on the input x and the 32-bit random mask
@@ -123,6 +128,7 @@ class XORHashFamily(IHashFamily):
         x = x & 0xffffffff
         return it.imap(lambda mask: self._xor_hash(x, mask), self._memomask)
 
+
 class MultiplyHashFamily(IHashFamily):
     """
     An implementation of a hash family that uses random multiplication of the
@@ -136,16 +142,17 @@ class MultiplyHashFamily(IHashFamily):
         """
         Initialize a set of 3 random integers < num_buckets for each hash
         """
-        self._params = [ [random.randint(1,num_buckets) for _ in xrange(3)] for _ in xrange(num_hashes)]
+        super(MultiplyHashFamily, self).__init__(num_hashes, num_buckets)
+        self._params = [[random.randint(1, num_buckets) for _ in xrange(3)] for _ in xrange(num_hashes)]
 
     def _mult_hash(self, x, params):
-        return params[0]*(x>>4) + params[1]*x + params[2]
+        return params[0] * (x >> 4) + params[1] * x + params[2]
 
     def hashn(self, x):
         return it.imap(lambda params: self._mult_hash(x, params), self._params)
 
 
-class LSHCache:
+class LSHCache(object):
     """
     Locality-Sensitive Hashing (LSH) implementation as described in
     Mining of Massive Dataset, Chapter 3 by Anand Rajaraman and Jeff Ullman, Chapter 3
@@ -167,8 +174,8 @@ class LSHCache:
 
     def __init__(self, b=None, r=None, n=None, m=1,
                  shingler=Shingler(2), shingle_hash=hash,
-                 universe_size = 131071, minhash=MultiplyHashFamily,
-                 store_signatures = False):
+                 universe_size=131071, minhash=MultiplyHashFamily,
+                 store_signatures=False):
         """
         An implementation of Locality-Sensitive Hashing (LSH) using minhash
 
@@ -211,11 +218,11 @@ class LSHCache:
         # default to 20 bands of 5 rows
         if n is None and r is None and b is None:
             # defaults
-            b,r = (20,5)
+            b, r = (20, 5)
 
         if n is None:
             assert r is not None and b is not None, "Must specify number of rows and bands"
-            n = b*r
+            n = b * r
         elif b is None and r is not None:
             assert n % r == 0, "total rows is not divisible by number of rows per band"
             b = n / r
@@ -227,11 +234,11 @@ class LSHCache:
             # There must be a much smarter way to do this, but hopefully the caller isn't spiteful
             for b in xrange(int(sqrt(n)), 1, -1):
                 if n % b == 0:
-                    r = n/b
+                    r = n / b
                     break
             else:
                 raise AssertionError("cannot reasonably divide a prime number of total rows (%d) into bands and rows per band" % n)
-        assert b*r==n, "inconsistent specifications of rows and bands"
+        assert b * r == n, "inconsistent specifications of rows and bands"
         assert m >= 0 and int(m) == m and m <= b, "matching bands must be positive integer less than number of bands"
         logging.debug("building LSH cache with %d total rows (%d matching of %d bands, %d rows per band) with %s and hashing with %s",
                       m, n, b, r, shingler, minhash)
@@ -255,6 +262,10 @@ class LSHCache:
         self._universe_size = universe_size
         self._store_signatures = store_signatures
 
+        self._seen = None
+        self._next_id = None
+        self._cache = None
+
         # make it
         self.clear()
 
@@ -270,33 +281,33 @@ class LSHCache:
         return set(it.imap(lambda shingle: self._shingle_hash(shingle) % self._universe_size,
                            self._shingler.shingle(doc)))
 
-    def _get_sig(self,shingle_vec):
+    def _get_sig(self, shingle_vec):
         """
         Takes a shingle vec and computes the minhash signature of length n using
         approximate permutations.  This method is explained in Mining Massive
         Datasets by Rajaraman and Ullman (http://infolab.stanford.edu/~ullman/mmds.html)
         in section 3.3.4.
         """
-        mhash = [sys.maxint]*self._n
+        mhash = [sys.maxint] * self._n
         for shingle in shingle_vec:
-            #logging.debug('r=%d', r)
-            for i,h in enumerate(self._minhash(shingle)):
-                h  = h % self._universe_size
-                if (h < mhash[i]):
+            # logging.debug('r=%d', r)
+            for i, h in enumerate(self._minhash(shingle)):
+                h = h % self._universe_size
+                if h < mhash[i]:
                     mhash[i] = h
         return mhash
 
-    def _get_lsh(self,sig):
+    def _get_lsh(self, sig):
         """
         Takes an n-dimensional minhash signature and computes b hashes for each of
         b bands of r rows in the signature.  These hashes can take on any value that
         can be stored in the 32bit integer.
         """
-        lsh = [None]*self._b
+        lsh = [None] * self._b
         for i in xrange(self._b):
-            lsh[i] = hash(tuple(sig[self._r*i:self._r*(i+1)]))
+            lsh[i] = hash(tuple(sig[self._r * i:self._r * (i + 1)]))
 
-        #logging.debug('hashed signature: %s\n[get_lsh]\tto bins: %s', (sig,lsh)
+        # logging.debug('hashed signature: %s\n[get_lsh]\tto bins: %s', (sig,lsh)
         return lsh
 
     def _get_lsh_from_doc(self, doc):
@@ -304,11 +315,11 @@ class LSHCache:
         given an iterable of hashable items, returns a list of bucket ids
         """
         shingle_vec = self._get_shingle_vec(doc)
-        sig = self._get_sig(shingle_vec) # n-dimensional min-hash signiture
-        lsh = self._get_lsh(sig) # r-dimensional list of bucket ids
+        sig = self._get_sig(shingle_vec)  # n-dimensional min-hash signiture
+        lsh = self._get_lsh(sig)  # r-dimensional list of bucket ids
         return lsh
 
-    def _insert_lsh(self,lsh,doc_id):
+    def _insert_lsh(self, lsh, doc_id):
         """
         Given an LSH vector of bucket indices, this method inserts the current doc
         id in the corresponding bucket for each of the _b tables
@@ -316,7 +327,7 @@ class LSHCache:
         assert doc_id not in self._seen, "Document with doc_id %d has already been inserted" % doc_id
         self._seen[doc_id] = lsh if self._store_signatures else None
         if doc_id >= self._next_id:
-            self._next_id = doc_id+1
+            self._next_id = doc_id + 1
         return self._reduce(self._insert_lsh_generator(lsh, doc_id))
 
     def _insert_lsh_generator(self, lsh, doc_id):
@@ -325,7 +336,7 @@ class LSHCache:
         be used with _insert_lsh as it modifies the structure yielding the current contents
         of each of those bands as it adds the doc_id.
         """
-        for i,band_bucket in enumerate(lsh):
+        for i, band_bucket in enumerate(lsh):
             arr = self._cache[i][band_bucket]
             yield arr
             arr.append(doc_id)
@@ -344,7 +355,7 @@ class LSHCache:
         Reduce a set of sequences and return a set of objects occurring at least
         min times across the set.
         """
-        def counter_union(c,s):
+        def counter_union(c, s):
             c.update(s)
             return c
         counts = reduce(counter_union, sets, Counter())
@@ -359,13 +370,13 @@ class LSHCache:
         of any matching documents.  If the cache was built in chronological order
         then buckets are also in chronological order
         """
-        if (doc):
+        if doc:
             lsh = self._get_lsh_from_doc(doc)
         else:
             assert self._store_signatures, "must store signatures if doc is not specified"
             assert doc_id is not None, "must specify doc or doc_id"
             lsh = self._seen[doc_id]
-        for i,band_bucket in enumerate(lsh):
+        for i, band_bucket in enumerate(lsh):
             yield self._cache[i][band_bucket]
 
     def get_dups(self, doc, doc_id=None):
@@ -388,9 +399,9 @@ class LSHCache:
         dups = []
         logging.debug('batch inserting len(docs)=%d', len(docs) if hasattr(docs, '__len__') else -1)
         for i, doc_tuple in enumerate(docs):
-            if (i % 100 == 0):
+            if i % 100 == 0:
                 logging.debug('batch processed %d docs', i)
-            if len(doc_tuple)==2 and isinstance(doc_tuple[1], int):
+            if len(doc_tuple) == 2 and isinstance(doc_tuple[1], int):
                 dups.append(self.insert(*doc_tuple))
             else:
                 dups.append(self.insert(doc_tuple))
@@ -398,7 +409,7 @@ class LSHCache:
 
     def clear(self):
         """recreate an empty cache of all entries and reset the doc_id counter"""
-        self._seen = {} # the set of doc ids which have already been hashed
+        self._seen = {}  # the set of doc ids which have already been hashed
         self._next_id = 0
         self._cache = [defaultdict(list) for _ in xrange(self._b)]
 
@@ -406,7 +417,7 @@ class LSHCache:
         return len(self._seen)
 
     def max_doc_id(self):
-        return self._next_id-1
+        return self._next_id - 1
 
     def num_bands(self):
         return self._b
@@ -428,18 +439,20 @@ class LSHCache:
         Returns the theoretical percentage of documents that should be found with the
         given pct_similarity from this cache
         """
-        pct_band_match = pct_similar**self._r
+        pct_band_match = pct_similar ** self._r
 
         if self._m < self._b - self._m:
-            return 1 - pbinom(pct_band_match, self._b, self._m-1)
+            return 1 - pbinom(pct_band_match, self._b, self._m - 1)
         else:
             return pbinom(pct_band_match, self._b, min_r=self._m, r=self._b)
 
-def nCr(n,r):
+
+def nCr(n, r):
     """
     combinatorics n choose r
     """
-    return factorial(n)/(factorial(r)*factorial(n-r))
+    return factorial(n) / (factorial(r) * factorial(n - r))
+
 
 def dbinom(pct, n, r):
     """
@@ -447,7 +460,8 @@ def dbinom(pct, n, r):
     exactly r  of n independent trials given pct of a single trial
     Follows naming conventions of r
     """
-    return nCr(n,r) * (pct**r) * ((1-pct)**(n-r))
+    return nCr(n, r) * (pct ** r) * ((1 - pct) ** (n - r))
+
 
 def pbinom(pct, n, r, min_r=0):
     """
@@ -455,4 +469,4 @@ def pbinom(pct, n, r, min_r=0):
     that between min_r and r of n independent trials given pct of a single trial
     Follows naming conventions of r
     """
-    return fsum(it.imap(ft.partial(dbinom, pct, n), xrange(min_r,r+1)))
+    return fsum(it.imap(ft.partial(dbinom, pct, n), xrange(min_r, r + 1)))

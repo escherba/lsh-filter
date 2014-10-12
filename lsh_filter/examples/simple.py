@@ -1,11 +1,7 @@
-import sys
-import os
-
-sys.path.insert(0, os.path.abspath('../..'))
 from lsh_filter import LSHCache
 
 
-if __name__ == '__main__':
+def main():
     cache = LSHCache()
 
     docs = [
@@ -20,7 +16,7 @@ if __name__ == '__main__':
         "they were going to send us binders of women",
         "a b c d e f",
         "a b c d f"
-        ]
+    ]
 
     dups = {}
     for i, doc in enumerate(docs):
@@ -33,3 +29,7 @@ if __name__ == '__main__':
                 print'\tdup : [%d] %s' % (dup, docs[dup])
         else:
             print 'no dups found for doc [%d] : %s' % (i, docs[i])
+
+
+if __name__ == '__main__':
+    main()
