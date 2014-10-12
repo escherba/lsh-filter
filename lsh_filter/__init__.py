@@ -11,10 +11,17 @@ from collections import defaultdict, Counter
 logging.getLogger().setLevel(logging.INFO)
 
 
+def jaccard_distance(label1, label2):
+    """Jaccard distance metric"""
+    union_len = len(label1 | label2)
+    intersection_len = len(label1 & label2)
+    return (union_len - intersection_len) / float(union_len)
+
+
 class Shingler(object):
     """
-    Handles turning a document (a list of tokens) into a sequence of shingles to
-    be used for minhashing
+    Handles turning a document (a list of tokens) into a sequence of shingles
+    to be used for minhashing
     """
 
     def __init__(self, shingle_len=2, max_shingle=None):

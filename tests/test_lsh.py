@@ -5,15 +5,8 @@ Created on Dec 13, 2013
 '''
 import unittest
 import random
-from lsh_filter import LSHCache, Shingler, XORHashFamily, MultiplyHashFamily
-
-
-def jaccard_distance(label1, label2):
-    """Distance metric comparing set-similarity.
-
-    """
-    return ((len(label1.union(label2)) - len(label1.intersection(label2))) /
-            float(len(label1.union(label2))))
+from lsh_filter import LSHCache, Shingler, XORHashFamily, MultiplyHashFamily, \
+    jaccard_distance
 
 
 class HashFamilyTest(unittest.TestCase):
