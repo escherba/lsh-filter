@@ -6,7 +6,7 @@ from glob import glob
 
 
 # dependency links
-SKIP_RE = re.compile(r'^\s*--find-links\s+(.*)$')
+SKIP_RE = re.compile(r'^\s*(?:-f|--find-links)\s+(.*)$')
 
 # Regex groups: 0: URL part, 1: package name, 2: package version
 EGG_RE = re.compile(r'^(.+)#egg=([a-z0-9_.]+)(?:-([a-z0-9_.-]+))?$')
